@@ -97,33 +97,35 @@ class PlanAndModuleSeeder extends Seeder
         $allModules = DB::table('modules')->get();
 
         foreach ($allModules as $module) {
-            // --- PLAN FREE (Módulos base incluidos en todos los planes) ---
-            if (in_array($module->slug, ['dashboard', 'pos', 'services', 'payments', 'settings_advanced'])) {
+            // --- PLAN FREE (Módulos incluidos para registro básico / todos los planes) ---
+            // Dashboard, POS, Servicios, Pagos, Gastos, Inventario, Facturación, Configuraciones Avanzadas, Reportes
+            if (in_array($module->slug, [
+                'dashboard',
+                'pos',
+                'services',
+                'payments',
+                'settings_advanced',
+                'expenses',
+                'inventory',
+                'billing',
+                'reports'
+            ])) {
                 $this->assignToPlans($module->id, [$freePlanId, $gooPlanId, $essentialPlanId, $businessPlanId]);
             }
 
-            // --- PLAN GO (Añade Gastos, Agendas e Integraciones) ---
-            if (in_array($module->slug, ['expenses', 'schedules', 'integrations'])) {
+            // --- PLAN GO (Añade Agendas e Integraciones) ---
+            if (in_array($module->slug, ['schedules', 'integrations'])) {
                 $this->assignToPlans($module->id, [$gooPlanId, $essentialPlanId, $businessPlanId]);
             }
 
-            // --- PLAN ESSENTIAL (Añade Reportes y Administración) ---
-            if (in_array($module->slug, ['reports', 'admin'])) {
+            // --- PLAN ESSENTIAL (Añade Administración) ---
+            if ($module->slug === 'admin') {
                 $this->assignToPlans($module->id, [$essentialPlanId, $businessPlanId]);
             }
 
-            // --- PLAN BUSINESS (Añade API Access / Acceso Total) ---
+            // --- PLAN BUSINESS (Añade API Access) ---
             if ($module->slug === 'api_access') {
                 $this->assignToPlans($module->id, [$businessPlanId]);
-            }
-
-            // --- INVENTARIO (Goo en adelante) ---
-            if ($module->slug === 'inventory') {
-                $this->assignToPlans($module->id, [$gooPlanId, $essentialPlanId, $businessPlanId]);
-            }
-            // --- FACTURACIÓN (Essential en adelante) ---
-            if ($module->slug === 'billing') {
-                $this->assignToPlans($module->id, [$essentialPlanId, $businessPlanId]);
             }
         }
     }

@@ -147,6 +147,9 @@ class AuthService
                 'entity_id' => $entity->id,
             ]);
 
+            // Asignar el rol de administrador para tener permisos base
+            $user->assignRole('admin');
+
             Operator::create([
                 'user_id' => $user->id,
                 'type_document' => $data['type_document'] ?? 'CC',
