@@ -65,6 +65,18 @@ class UserController extends Controller
                 }
                 $user->update($userData);
             } else {
+                // Verificar límite de usuarios según el plan activo de la entidad
+                $currentUser = Auth::user();
+                $plan = $currentUser->getActivePlan();
+                if ($plan && $plan->max_users > 0) {
+                    $currentUsersCount = User::where('entity_id', $entityId)->count();
+                    if ($currentUsersCount >= $plan->max_users) {
+                        return response()->json([
+                            'message' => 'Has alcanzado el límite de usuarios permitidos para tu plan (' . $plan->max_users . ' usuarios). Por favor, actualiza tu plan para poder registrar más usuarios.'
+                        ], 422);
+                    }
+                }
+
                 $user = User::create($userData);
             }
 
