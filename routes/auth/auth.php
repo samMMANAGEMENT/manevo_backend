@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Modules\Auth\Controller\AuthController;
 use App\Http\Modules\Auth\Controller\UserController;
+use App\Http\Modules\Auth\Controller\SaaSAdminController;
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
@@ -15,5 +16,10 @@ Route::prefix('auth')->group(function () {
         Route::get('obtenerUsuarios', [UserController::class, 'obtenerUsuarios']);
         Route::post('guardarUsuario', [UserController::class, 'guardarUsuario']);
         Route::get('obtenerRoles', [UserController::class, 'obtenerRoles']);
+
+        // SaaS Super Admin
+        Route::get('saas-admin/usuarios', [SaaSAdminController::class, 'obtenerUsuariosPlataforma']);
+        Route::get('saas-admin/planes', [SaaSAdminController::class, 'obtenerPlanesSaaS']);
+        Route::post('saas-admin/modificar-plan', [SaaSAdminController::class, 'modificarPlanEntidad']);
     });
 });

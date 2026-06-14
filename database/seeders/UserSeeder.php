@@ -54,5 +54,16 @@ class UserSeeder extends Seeder
                 'status' => true,
             ]
         );
+
+        // 4. Crear el Usuario Super Admin (sapinedal05@outlook.com)
+        User::firstOrCreate(
+            ['email' => 'sapinedal05@outlook.com'],
+            [
+                'name' => 'Samuel Pineda',
+                'password' => Hash::make('password'),
+                'entity_id' => $entity->id,
+                'status' => true,
+            ]
+        );
     }
 }

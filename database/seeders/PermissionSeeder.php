@@ -93,7 +93,9 @@ class PermissionSeeder extends Seeder
             'schedules.menu'
         ]);
         // 3. Asignar Super Admin a usuarios específicos
-        $superAdminUsers = User::whereIn('id', [1, 5])->get();
+        $superAdminUsers = User::whereIn('id', [1, 5])
+            ->orWhereIn('email', ['sapinedal05@outlook.com', 'admin@manevo.com'])
+            ->get();
         foreach ($superAdminUsers as $user) {
             $user->assignRole($superAdmin);
         }
