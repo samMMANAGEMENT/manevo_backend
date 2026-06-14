@@ -25,34 +25,26 @@ class SaaSAdminController extends Controller
     }
 
     /**
-     * Listar todos los usuarios del sistema con sus entidades y planes activos
+     * Listar todos los workspaces (entidades) con sus planes y usuarios asociados
      */
-    public function obtenerUsuariosPlataforma()
+    public function obtenerWorkspacesPlataforma()
     {
         $this->checkAccess();
 
-        $users = User::with(['entity.planes' => function ($query) {
+        $entities = Entity::with(['planes' => function ($query) {
             $query->withPivot('start_date', 'end_date', 'status');
-        }])->get();
+        }, 'users'])->get();
 
-        $formattedUsers = $users->map(function ($user) {
-            $activePlan = null;
-            if ($user->entity && $user->entity->planes) {
-                $activePlan = $user->entity->planes
-                    ->where('pivot.status', 'active')
-                    ->first();
-            }
+        $formatted = $entities->map(function ($entity) {
+            $activePlan = $entity->planes
+                ->where('pivot.status', 'active')
+                ->first();
 
             return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at,
-                'entity' => $user->entity ? [
-                    'id' => $user->entity->id,
-                    'name' => $user->entity->name,
-                    'description' => $user->entity->description,
-                ] : null,
+                'id' => $entity->id,
+                'name' => $entity->name,
+                'description' => $entity->description,
+                'created_at' => $entity->created_at,
                 'plan' => $activePlan ? [
                     'id' => $activePlan->id,
                     'name' => $activePlan->name,
@@ -61,10 +53,18 @@ class SaaSAdminController extends Controller
                     'end_date' => $activePlan->pivot->end_date,
                     'status' => $activePlan->pivot->status,
                 ] : null,
+                'users' => $entity->users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'created_at' => $user->created_at,
+                    ];
+                }),
             ];
         });
 
-        return response()->json($formattedUsers);
+        return response()->json($formatted);
     }
 
     /**

@@ -18,7 +18,7 @@ Route::prefix('auth')->group(function () {
         Route::get('obtenerRoles', [UserController::class, 'obtenerRoles']);
 
         // SaaS Super Admin
-        Route::get('saas-admin/usuarios', [SaaSAdminController::class, 'obtenerUsuariosPlataforma']);
+        Route::get('saas-admin/workspaces', [SaaSAdminController::class, 'obtenerWorkspacesPlataforma']);
         Route::get('saas-admin/planes', [SaaSAdminController::class, 'obtenerPlanesSaaS']);
         Route::post('saas-admin/modificar-plan', [SaaSAdminController::class, 'modificarPlanEntidad']);
     });

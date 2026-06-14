@@ -23,6 +23,11 @@ class Entity extends Model
             ->withTimestamps();
     }
 
+    public function users()
+    {
+        return $this->hasMany(\App\Models\User::class, 'entity_id');
+    }
+
     protected static function booted()
     {
         static::created(function ($entity) {
