@@ -57,4 +57,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(Operator::class);
     }
+
+    public function entity()
+    {
+        return $this->belongsTo(\App\Http\Modules\Entity\Model\Entity::class, 'entity_id');
+    }
 }
