@@ -150,7 +150,7 @@ class AuthService
             // Asignar el rol de administrador para tener permisos base
             $user->assignRole('admin');
 
-            Operator::create([
+            $operator = Operator::create([
                 'user_id' => $user->id,
                 'type_document' => $data['type_document'] ?? 'CC',
                 'document' => $data['document_number'],
@@ -163,8 +163,31 @@ class AuthService
                 $this->entityService->asignarPlan($entity->id, $defaultPlan->id);
             }
 
+            // Crear nuevo token de autenticación
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            // Cargar relaciones y permisos
+            $user->load(['roles', 'permissions', 'operator']);
+            $permissions = $user->getFilteredPermissions();
+            $roles = $user->roles->pluck('name');
+
             return [
-                'user' => $user,
+                'token_type' => 'Bearer',
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'entity_id' => $user->entity_id,
+                    'operator' => $user->operator ? [
+                        'name' => $user->name,
+                        'type_document' => $user->operator->type_document,
+                        'document' => $user->operator->document,
+                        'mobile' => $user->operator->mobile,
+                    ] : null,
+                    'permissions' => $permissions,
+                    'roles' => $roles,
+                    'password_changed_at' => $user->password_changed_at,
+                ],
                 'entity' => $entity,
                 'plan' => $defaultPlan ? $defaultPlan->name : 'No asignado',
                 'message' => 'Registro completado con éxito'
