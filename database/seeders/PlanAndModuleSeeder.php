@@ -9,6 +9,11 @@ class PlanAndModuleSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Modelo actual: software 100% gratis (un solo plan, con todos los módulos).
+     * El cobro ya no vive en el sistema de Plan/Módulo sino en el de Addons
+     * (ver AddonSeeder) — Plan/Módulo controla qué se ve en el menú,
+     * Addon controla qué automatización/feature paga está activa.
      */
     public function run(): void
     {
@@ -41,105 +46,60 @@ class PlanAndModuleSeeder extends Seeder
             );
         }
 
-        // 2. Crear Planes
-        $plans = [
+        // 2. Crear Plan único: Gratis
+        DB::table('plans')->updateOrInsert(
+            ['slug' => 'free'],
             [
                 'name' => 'Gratis',
-                'slug' => 'free',
                 'price' => 0.00,
                 'duration' => 3650, // 10 años aprox (ilimitado por lógica de negocio)
-                'max_users' => 2,
+                'max_users' => 0, // Ilimitado
                 'is_default' => true,
                 'status' => true,
-            ],
-            [
-                'name' => 'Goo',
-                'slug' => 'goo',
-                'price' => 9.99,
-                'duration' => 30,
-                'max_users' => 5,
-                'is_default' => false,
-                'status' => true,
-            ],
-            [
-                'name' => 'Essential',
-                'slug' => 'essential',
-                'price' => 19.99,
-                'duration' => 30,
-                'max_users' => 0, // Ilimitado
-                'is_default' => false,
-                'status' => true,
-            ],
-            [
-                'name' => 'Business',
-                'slug' => 'business',
-                'price' => 99.99,
-                'duration' => 30,
-                'max_users' => 0, // Ilimitado
-                'is_default' => false,
-                'status' => true,
-            ],
-        ];
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
 
-        foreach ($plans as $plan) {
-            DB::table('plans')->updateOrInsert(
-                ['slug' => $plan['slug']],
-                array_merge($plan, ['updated_at' => now(), 'created_at' => now()])
-            );
-        }
-
-        // 3. Asignar Módulos a Planes (pivot: plan_module)
         $freePlanId = DB::table('plans')->where('slug', 'free')->value('id');
-        $gooPlanId = DB::table('plans')->where('slug', 'goo')->value('id');
-        $essentialPlanId = DB::table('plans')->where('slug', 'essential')->value('id');
-        $businessPlanId = DB::table('plans')->where('slug', 'business')->value('id');
 
-        $allModules = DB::table('modules')->get();
+        // Desactivar planes de pago legados (goo, essential, business) — ya no se venden así.
+        DB::table('plans')->whereIn('slug', ['goo', 'essential', 'business'])->update(['status' => false]);
 
-        foreach ($allModules as $module) {
-            // --- PLAN FREE (Módulos incluidos para registro básico / todos los planes) ---
-            // Dashboard, POS, Servicios, Pagos, Gastos, Inventario, Facturación, Configuraciones Avanzadas, Reportes
-            if (in_array($module->slug, [
-                'dashboard',
-                'pos',
-                'services',
-                'payments',
-                'settings_advanced',
-                'expenses',
-                'inventory',
-                'billing',
-                'reports'
-            ])) {
-                $this->assignToPlans($module->id, [$freePlanId, $gooPlanId, $essentialPlanId, $businessPlanId]);
-            }
-
-            // --- PLAN GO (Añade Agendas e Integraciones) ---
-            if (in_array($module->slug, ['schedules', 'integrations'])) {
-                $this->assignToPlans($module->id, [$gooPlanId, $essentialPlanId, $businessPlanId]);
-            }
-
-            // --- PLAN ESSENTIAL (Añade Administración) ---
-            if ($module->slug === 'admin') {
-                $this->assignToPlans($module->id, [$essentialPlanId, $businessPlanId]);
-            }
-
-            // --- PLAN BUSINESS (Añade API Access) ---
-            if ($module->slug === 'api_access') {
-                $this->assignToPlans($module->id, [$businessPlanId]);
-            }
-        }
-    }
-
-    /**
-     * Helper para asignar un módulo a varios planes
-     */
-    private function assignToPlans(int $moduleId, array $planIds): void
-    {
-        foreach ($planIds as $planId) {
+        // 3. Asignar TODOS los módulos al plan Gratis
+        $allModuleIds = DB::table('modules')->pluck('id');
+        foreach ($allModuleIds as $moduleId) {
             DB::table('plan_module')->updateOrInsert(
-                ['plan_id' => $planId, 'module_id' => $moduleId],
+                ['plan_id' => $freePlanId, 'module_id' => $moduleId],
                 ['created_at' => now(), 'updated_at' => now()]
             );
+        }
+
+        // 4. Migrar cualquier entidad que estuviera en un plan de pago legado al plan Gratis
+        $legacyPlanIds = DB::table('plans')->whereIn('slug', ['goo', 'essential', 'business'])->pluck('id');
+        if ($legacyPlanIds->isNotEmpty()) {
+            $entitiesOnLegacyPlans = DB::table('entity_plan')
+                ->whereIn('plan_id', $legacyPlanIds)
+                ->where('status', 'active')
+                ->pluck('entity_id');
+
+            foreach ($entitiesOnLegacyPlans as $entityId) {
+                DB::table('entity_plan')
+                    ->where('entity_id', $entityId)
+                    ->whereIn('plan_id', $legacyPlanIds)
+                    ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+                DB::table('entity_plan')->updateOrInsert(
+                    ['entity_id' => $entityId, 'plan_id' => $freePlanId],
+                    [
+                        'start_date' => now(),
+                        'end_date' => null,
+                        'status' => 'active',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
         }
     }
 }

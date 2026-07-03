@@ -78,9 +78,21 @@ class PermissionSeeder extends Seeder
         $superAdmin = Role::findOrCreate('super_admin', 'api');
         $superAdmin->syncPermissions(Permission::all());
 
-        // Admin: Casi todo (pero limitado a su entidad)
+        // Admin: Casi todo (pero limitado a su entidad).
+        // Los módulos de plataforma (Administración SaaS, Integraciones internas, API Access)
+        // son exclusivos del administrador global — no se sincronizan al rol "admin" de negocio.
+        $platformOnlyModules = ['admin', 'integrations', 'api_access'];
+
         $admin = Role::findOrCreate('admin', 'api');
-        $admin->syncPermissions(Permission::all());
+        $adminPermissions = Permission::all()->reject(function ($permission) use ($platformOnlyModules) {
+            foreach ($platformOnlyModules as $slug) {
+                if (str_starts_with($permission->name, "{$slug}.")) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        $admin->syncPermissions($adminPermissions);
 
         // Operador: Solo ventas y servicios
         $operator = Role::findOrCreate('operator', 'api');

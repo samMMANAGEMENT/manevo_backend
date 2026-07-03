@@ -5,6 +5,7 @@ namespace App\Http\Modules\Entity\Model;
 use Illuminate\Database\Eloquent\Model;
 use App\Http\Modules\Plan\Model\Plan;
 use App\Http\Modules\Entity\Model\Customer;
+use App\Http\Modules\Addon\Model\Addon;
 
 class Entity extends Model
 {
@@ -20,6 +21,13 @@ class Entity extends Model
     {
         return $this->belongsToMany(Plan::class, 'entity_plan')
             ->withPivot('start_date', 'end_date', 'status')
+            ->withTimestamps();
+    }
+
+    public function addons()
+    {
+        return $this->belongsToMany(Addon::class, 'entity_addons')
+            ->withPivot('status', 'activated_at', 'current_period_end', 'settings')
             ->withTimestamps();
     }
 

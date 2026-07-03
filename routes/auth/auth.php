@@ -21,5 +21,8 @@ Route::prefix('auth')->group(function () {
         Route::get('saas-admin/workspaces', [SaaSAdminController::class, 'obtenerWorkspacesPlataforma']);
         Route::get('saas-admin/planes', [SaaSAdminController::class, 'obtenerPlanesSaaS']);
         Route::post('saas-admin/modificar-plan', [SaaSAdminController::class, 'modificarPlanEntidad']);
+        Route::get('saas-admin/addons', [SaaSAdminController::class, 'obtenerAddonsSaaS']);
+        Route::post('saas-admin/activar-addon', [SaaSAdminController::class, 'activarAddonEntidad']);
+        Route::post('saas-admin/desactivar-addon', [SaaSAdminController::class, 'desactivarAddonEntidad']);
     });
 });

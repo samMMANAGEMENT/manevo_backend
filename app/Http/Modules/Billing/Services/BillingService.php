@@ -7,11 +7,33 @@ use App\Http\Modules\Billing\Model\InvoiceItem;
 use App\Http\Modules\Entity\Model\BillingConfiguration;
 use App\Http\Modules\Sales\Model\Sale;
 use App\Http\Modules\Services\Model\ServiceOrder;
+use App\Http\Modules\Addon\Services\AddonService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class BillingService
 {
+    public function __construct(private AddonService $addonService)
+    {
+    }
+
+    /**
+     * Verifica que la entidad tenga el addon de Facturación DIAN activo.
+     * La facturación electrónica ya no es parte del sistema de Planes/Módulos,
+     * es un addon de pago independiente.
+     */
+    private function verificarAddonFacturacion(): void
+    {
+        $entityId = Auth::user()->entity_id;
+
+        if (!$this->addonService->tieneAddonActivo($entityId, 'facturacion-dian')) {
+            throw new \Exception(
+                'La Facturación Electrónica DIAN es un addon de pago. Actívalo desde Configuración > Addons para poder emitir facturas.'
+            );
+        }
+    }
+
     /**
      * Get Sales and ServiceOrders that haven't been invoiced yet.
      * Uses BelongsToEntity trait for automatic scoping.
@@ -55,6 +77,8 @@ class BillingService
      */
     public function createInvoice(array $data)
     {
+        $this->verificarAddonFacturacion();
+
         $config = BillingConfiguration::first();
         if (!$config)
             throw new \Exception("No hay configuración de facturación para esta entidad.");
@@ -100,6 +124,8 @@ class BillingService
      */
     public function sendToDataInvoice(Invoice $invoice)
     {
+        $this->verificarAddonFacturacion();
+
         $config = BillingConfiguration::first();
         if (!$config || !$config->api_token)
             throw new \Exception("Configuración de API incompleta.");

@@ -7,12 +7,18 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Http\Modules\Entity\Model\Entity;
 use App\Http\Modules\Plan\Model\Plan;
+use App\Http\Modules\Addon\Model\Addon;
+use App\Http\Modules\Addon\Services\AddonService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class SaaSAdminController extends Controller
 {
+    public function __construct(private AddonService $addonService)
+    {
+    }
+
     /**
      * Verificar que el usuario sea el superadministrador específico
      */
@@ -33,6 +39,8 @@ class SaaSAdminController extends Controller
 
         $entities = Entity::with(['planes' => function ($query) {
             $query->withPivot('start_date', 'end_date', 'status');
+        }, 'addons' => function ($query) {
+            $query->withPivot('status', 'activated_at', 'current_period_end');
         }, 'users'])->get();
 
         $formatted = $entities->map(function ($entity) {
@@ -53,6 +61,17 @@ class SaaSAdminController extends Controller
                     'end_date' => $activePlan->pivot->end_date,
                     'status' => $activePlan->pivot->status,
                 ] : null,
+                'addons' => $entity->addons
+                    ->where('pivot.status', 'active')
+                    ->map(function ($addon) {
+                        return [
+                            'id' => $addon->id,
+                            'slug' => $addon->slug,
+                            'name' => $addon->name,
+                            'activated_at' => $addon->pivot->activated_at,
+                            'current_period_end' => $addon->pivot->current_period_end,
+                        ];
+                    })->values(),
                 'users' => $entity->users->map(function ($user) {
                     return [
                         'id' => $user->id,
@@ -65,6 +84,62 @@ class SaaSAdminController extends Controller
         });
 
         return response()->json($formatted);
+    }
+
+    /**
+     * Obtener todos los addons disponibles en la plataforma
+     */
+    public function obtenerAddonsSaaS()
+    {
+        $this->checkAccess();
+
+        return response()->json(Addon::orderBy('name')->get());
+    }
+
+    /**
+     * Activar un addon para un workspace/entidad (mientras no haya pasarela de pagos, activación manual)
+     */
+    public function activarAddonEntidad(Request $request)
+    {
+        $this->checkAccess();
+
+        $validated = $request->validate([
+            'entity_id' => 'required|exists:entities,id',
+            'addon_slug' => 'required|exists:addons,slug',
+            'current_period_end' => 'nullable|date',
+        ]);
+
+        $entityAddon = $this->addonService->activarAddon(
+            $validated['entity_id'],
+            $validated['addon_slug'],
+            isset($validated['current_period_end']) ? Carbon::parse($validated['current_period_end']) : null
+        );
+
+        return response()->json([
+            'message' => 'Addon activado con éxito',
+            'entity_id' => $validated['entity_id'],
+            'addon' => $entityAddon,
+        ]);
+    }
+
+    /**
+     * Desactivar un addon para un workspace/entidad
+     */
+    public function desactivarAddonEntidad(Request $request)
+    {
+        $this->checkAccess();
+
+        $validated = $request->validate([
+            'entity_id' => 'required|exists:entities,id',
+            'addon_slug' => 'required|exists:addons,slug',
+        ]);
+
+        $this->addonService->desactivarAddon($validated['entity_id'], $validated['addon_slug']);
+
+        return response()->json([
+            'message' => 'Addon desactivado con éxito',
+            'entity_id' => $validated['entity_id'],
+        ]);
     }
 
     /**

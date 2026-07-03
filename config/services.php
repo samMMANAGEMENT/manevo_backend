@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'n8n' => [
+        // API key que n8n debe enviar en el header X-API-Key para llamar a integrations/n8n/*
+        'api_key' => env('N8N_API_KEY'),
+        // Webhook que n8n expone para el workflow de Confirmación de Pago
+        'webhook_payment_confirmed' => env('N8N_WEBHOOK_PAYMENT_CONFIRMED'),
+    ],
+
 ];

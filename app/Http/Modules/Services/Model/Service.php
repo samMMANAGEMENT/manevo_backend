@@ -15,12 +15,14 @@ class Service extends Model
         'name',
         'price',
         'employee_percentage',
+        'duration_minutes',
         'status',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'employee_percentage' => 'decimal:2',
+        'duration_minutes' => 'integer',
         'status' => 'boolean',
     ];
 

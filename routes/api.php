@@ -13,3 +13,6 @@ require_once __DIR__ . '/billing/billing.php';
 require_once __DIR__ . '/expense/expense.php';
 require_once __DIR__ . '/operator_payment/operator_payment.php';
 require_once __DIR__ . '/feedback/feedback.php';
+require_once __DIR__ . '/addon/addon.php';
+require_once __DIR__ . '/appointment/appointment.php';
+require_once __DIR__ . '/integration/integration.php';

@@ -37,7 +37,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . ($request->id ?? 'NULL'),
             'password' => $request->id ? 'nullable|min:6' : 'required|min:6',
-            'role' => 'required|string|exists:roles,name',
+            'role' => 'required|string|exists:roles,name|not_in:super_admin',
             // Operator fields
             'type_document' => 'required|string',
             'document' => 'required|string',
@@ -98,12 +98,12 @@ class UserController extends Controller
     }
 
     /**
-     * Get available roles
+     * Get available roles.
+     * super_admin queda excluido: es exclusivo del administrador global de la plataforma
+     * y no debe poder asignarse desde la gestión de usuarios de un negocio.
      */
     public function obtenerRoles()
     {
-        // For security, only allow selecting non-superadmin roles for common entities if needed
-        // but for now return all active roles
-        return response()->json(Role::all());
+        return response()->json(Role::where('name', '!=', 'super_admin')->get());
     }
 }
