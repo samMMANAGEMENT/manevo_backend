@@ -47,4 +47,19 @@ class SalesController extends Controller
             ], 400);
         }
     }
+
+    public function destroy($id)
+    {
+        try {
+            $this->salesService->deleteSale(Auth::user()->entity_id, $id);
+            return response()->json([
+                'message' => 'Venta eliminada con éxito y stock restaurado'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la venta',
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

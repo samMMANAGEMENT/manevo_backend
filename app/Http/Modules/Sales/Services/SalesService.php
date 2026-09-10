@@ -90,4 +90,29 @@ class SalesService
             ->orderBy('date', 'desc')
             ->get();
     }
+
+    public function deleteSale($entityId, $id)
+    {
+        return DB::transaction(function () use ($entityId, $id) {
+            $sale = Sale::where('entity_id', $entityId)
+                ->with('items')
+                ->findOrFail($id);
+
+            // Restablece el stock para cada producto de la venta
+            foreach ($sale->items as $item) {
+                $this->inventoryService->recordMovement(
+                    $item->product_id,
+                    'in',
+                    $item->quantity,
+                    now()
+                );
+            }
+
+            // Elimina los items y el encabezado de la venta
+            $sale->items()->delete();
+            $sale->delete();
+
+            return true;
+        });
+    }
 }

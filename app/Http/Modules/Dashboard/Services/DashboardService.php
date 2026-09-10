@@ -176,6 +176,8 @@ class DashboardService
 
         $todaySales = Sale::where('entity_id', $entityId)
             ->whereDate('date', $date)
+            ->with(['seller', 'items.product'])
+            ->orderBy('date', 'desc')
             ->get();
 
         $todayExpenses = Expense::where('entity_id', $entityId)
@@ -202,25 +204,59 @@ class DashboardService
                     'services' => $items->map(fn($i) => [
                         'name' => $i->service->name ?? 'Servicio',
                         'gross' => (float) $i->total_net,
-                        'commission_percentage' => (float) $i->commission_percentage_snapshot
-                    ])
+                        'commission_percentage' => (float) $i->commission_percentage_snapshot,
+                        'profit' => (float) ($i->total_net - ($i->total_net * ($i->commission_percentage_snapshot / 100))),
+                        'time' => $i->order && $i->order->date ? Carbon::parse($i->order->date)->format('h:i A') : ($i->created_at ? Carbon::parse($i->created_at)->format('h:i A') : null)
+                    ])->values()->toArray()
                 ];
             })->values();
 
-        $todayProfit = (float)($operatorPerformances->sum('profit') + $dailySalesProfit) - $todayExpenses;
+        $productSalesDetails = $todaySales->map(function ($sale) {
+            $sellerName = $sale->seller->name ?? 'Usuario Sistema';
+            $saleTime = $sale->date ? Carbon::parse($sale->date)->format('h:i A') : ($sale->created_at ? Carbon::parse($sale->created_at)->format('h:i A') : '--:--');
+            
+            return [
+                'id' => $sale->id,
+                'seller_name' => $sellerName,
+                'seller_initials' => collect(explode(' ', $sellerName))->map(fn($n) => mb_substr($n, 0, 1))->join(''),
+                'time' => $saleTime,
+                'date' => $sale->date ? Carbon::parse($sale->date)->format('Y-m-d H:i:s') : null,
+                'total' => (float) $sale->total,
+                'profit' => (float) $sale->total_profit,
+                'payment_method' => $sale->payment_method,
+                'items' => $sale->items->map(function ($item) {
+                    $itemProfit = ($item->price_at_sale - $item->cost_at_sale) * $item->quantity;
+                    return [
+                        'product_name' => $item->product->name ?? 'Producto',
+                        'quantity' => (int) $item->quantity,
+                        'price_at_sale' => (float) $item->price_at_sale,
+                        'cost_at_sale' => (float) $item->cost_at_sale,
+                        'subtotal' => (float) $item->subtotal,
+                        'profit' => (float) $itemProfit,
+                    ];
+                })->values()->toArray()
+            ];
+        })->values()->toArray();
+
+        $serviceNetProfit = (float) $operatorPerformances->sum('profit');
+        $todayProfit = (float) ($serviceNetProfit + $dailySalesProfit) - $todayExpenses;
 
         return [
             'total_income' => (float) $dailyIncome,
             'net_profit' => (float) $todayProfit,
+            'service_profit' => $serviceNetProfit,
+            'product_profit' => $dailySalesProfit,
             'profit_percentage' => $dailyIncome > 0 ? round(($todayProfit / $dailyIncome) * 100, 1) : 0,
             'product_sales' => (float) $todaySales->sum('total'),
+            'product_sales_count' => $todaySales->count(),
             'services_count' => $operatorPerformances->sum('services_count'),
             'expenses' => (float) $todayExpenses,
             'payment_methods' => [
                 'cash' => (float) ($todayServices->sum('cash_amount') + $todaySales->sum('cash_amount')),
                 'transfer' => (float) ($todayServices->sum('transfer_amount') + $todaySales->sum('transfer_amount')),
             ],
-            'operators' => $operatorPerformances
+            'operators' => $operatorPerformances,
+            'sales_details' => $productSalesDetails
         ];
     }
 }
